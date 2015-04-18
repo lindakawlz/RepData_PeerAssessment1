@@ -8,18 +8,69 @@ output:
 
 ## Loading and preprocessing the data
 
-
+```{r}
+unzip("activity.zip")
+activity <- read.csv("activity.csv", stringsAsFactors = FALSE)
+```
 
 ## What is mean total number of steps taken per day?
 
+```{r}
+totalstepsperday <- tapply(activity$steps, activity$date, sum)
+totalstepsperday
+hist(totalstepsperday, main = "Histogram of total number of steps taken per day", xlab = "Total number of steps taken per day")
+options(scipen = 999)
+meanstepsperday <- mean(totalstepsperday, na.rm = TRUE)
+medianstepsperday <- median(totalstepsperday, na.rm = TRUE)
+```
 
+The mean of the total number of steps taken per day is `r meanstepsperday`.  
+The median of the total number of steps taken per day is `r medianstepsperday`.
 
 ## What is the average daily activity pattern?
 
+```{r}
+meanstepsperinterval <- tapply(activity$steps, activity$interval, mean, na.rm = TRUE)
+plot(meanstepsperinterval, type = "l", main = "Average daily activity pattern", xlab = "5-minute interval", ylab = "Average number of steps taken across all days", xaxt = "n")
+axis(1, at = seq(0, 250, 50), labels = seq(0, 2050, 410))
+maxinterval <- names(meanstepsperinterval[meanstepsperinterval == max(meanstepsperinterval)])
+```
 
+The 5-minute interval, on average across all the days in the dataset, that contains the maximum number of steps is `r maxinterval`.
 
 ## Imputing missing values
 
+```{r}
+missing <- sum(is.na(activity$steps))
+```
 
+The total number of missing values in the dataset is `r missing`.  
+I will be using the mean number of steps for each 5-minute interval to fill in all of the missing values in the dataset.
 
+```{r}
+newactivity <- activity
+newactivity$steps[is.na(newactivity$steps)] <- meanstepsperinterval
+newtotalstepsperday <- tapply(newactivity$steps, newactivity$date, sum)
+newtotalstepsperday
+hist(newtotalstepsperday, main = "Histogram of total number of steps taken per day", xlab = "Total number of steps taken per day")
+newmeanstepsperday <- mean(newtotalstepsperday)
+newmedianstepsperday <- median(newtotalstepsperday)
+```
+
+The mean of the total number of steps taken per day is `r newmeanstepsperday`.  
+The median of the total number of steps taken per day is `r newmedianstepsperday`.  
+The mean is the same as the first part. The median is slightly greater than the first part. Inputting the missing data has increased the frequency of days with 10000-15000 steps. This caused the median to increase. It has no impact on the mean since the strategy to fill in the missing values was to use the average number of steps.
+ 
 ## Are there differences in activity patterns between weekdays and weekends?
+
+```{r}
+day <- weekdays(as.Date(newactivity$date))
+newactivity$day[day %in% c("Monday", "Tuesday", "Wednesday", "Thursday", "Friday")] <- "weekday"
+newactivity$day[day %in% c("Saturday", "Sunday")] <- "weekend"
+newactivity$day <- as.factor(newactivity$day)
+
+library(lattice)
+newmeanstepsperinterval <- tapply(newactivity$steps, interaction(newactivity$interval, newactivity$day), mean)
+dat <- data.frame(steps = as.numeric(newmeanstepsperinterval), interval = newactivity$interval[1:576], day = rep(c("weekday", "weekend"), each = 288))
+xyplot(steps ~ interval | day, data = dat, type = "l", layout = c(1, 2), xlab = "Interval", ylab = "Number of steps")
+```
